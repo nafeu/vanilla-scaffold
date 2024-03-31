@@ -1,0 +1,39 @@
+{
+  "name": "vanilla-scaffold",
+  "version": "1.0.0",
+  "description": "boilerplate generator for vanillajs gh-page projects",
+  "main": "src/index.mjs",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "attach": "npm link",
+    "lint": "eslint --fix src",
+    "format": "prettier . --write"
+  },
+  "bin": {
+    "@nafeu/vanilla-scaffold": "bin/vscaf",
+    "vscaf": "bin/vscaf"
+  },
+  "keywords": [
+    "cli",
+    "arg",
+    "inquirer"
+  ],
+  "author": "Nafeu Nasir <nafeu.nasir@gmail.com> (http://nafeu.com/)",
+  "license": "MIT",
+  "dependencies": {
+    "arg": "^5.0.2",
+    "inquirer": "^9.2.17",
+    "lodash": "^4.17.21",
+    "node-emoji": "^2.1.3",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5"
+  }
+}

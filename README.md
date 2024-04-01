@@ -1,11 +1,19 @@
 # Vanilla Scaffold
 
-Fast github pages boilerplate generator for a plain HTML/CSS/JS website
+Fast github pages boilerplate generator for a plain HTML/CSS/JS websites
 
-### Basic Usage
+### Installation
 
 ```
 npm install
 npm link
+cp .sample-env .env
+```
+
+Fill out the `.env` file
+
+### Basic Usage
+
+```
 vscaf
 ```

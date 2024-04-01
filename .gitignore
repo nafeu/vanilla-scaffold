@@ -2,3 +2,4 @@
 devnotes.txt
 .env
 node_modules/
+build/

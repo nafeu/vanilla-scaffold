@@ -8,7 +8,9 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "rules": {},
+  "rules": {
+    "no-console": "off"
+  },
   "plugins": ["prettier"],
   "overrides": [
     {

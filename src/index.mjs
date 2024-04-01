@@ -5,22 +5,15 @@ import _ from 'lodash';
 import dotenv from 'dotenv';
 import { existsSync } from 'fs';
 import { readFile, writeFile } from 'fs/promises';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 
-// eslint-disable-next-line import/extensions
-import { createDirectory, toKebabCase, openBuild } from './helpers.mjs';
+import {
+  createDirectory,
+  toKebabCase,
+  openBuild,
+  interpolateTemplate,
+} from './helpers.mjs';
 
-// eslint-disable-next-line no-underscore-dangle
-const __filename = fileURLToPath(import.meta.url);
-// eslint-disable-next-line no-underscore-dangle
-const __dirname = dirname(__filename);
-
-const TEMPLATES = {
-  HTML_BASIC: join(__dirname, '../templates/template-index-html-basic.txt'),
-  LICENSE: join(__dirname, '../templates/template-license.txt'),
-  GITIGNORE: join(__dirname, '../templates/template-gitignore.txt'),
-};
+import { TEMPLATES } from './constants.mjs';
 
 if (!existsSync('.env')) {
   console.error('Error: .env file not found, run: cp .env-sample .env');
@@ -38,6 +31,8 @@ function parseArgumentsIntoOptions(rawArgs) {
   const args = arg(
     {
       '--name': String,
+      '--github-username': String,
+      '--author': String,
       '--title': String,
       '--short-desc': String,
       '--desc': String,
@@ -46,6 +41,8 @@ function parseArgumentsIntoOptions(rawArgs) {
       '--private-repo': Boolean,
       '--open-build': Boolean,
       '-n': '--name',
+      '-g': '--github-username',
+      '-a': '--author',
       '-t': '--title',
       '-s': '--short-desc',
       '-d': '--desc',
@@ -60,6 +57,8 @@ function parseArgumentsIntoOptions(rawArgs) {
   );
   return {
     name: args['--name'],
+    githubUsername: args['--github-username'],
+    author: args['--author'],
     title: args['--title'],
     shortDesc: args['--short-desc'],
     desc: args['--desc'],
@@ -82,11 +81,30 @@ async function promptForMissingOptions(options) {
     });
   }
 
+  if (_.isEmpty(options.githubUsername)) {
+    questions.push({
+      type: 'string',
+      name: 'githubUsername',
+      message: 'What is your github username? (for github api actions)',
+      default: process.env.GITHUB_USERNAME || '',
+    });
+  }
+
+  if (_.isEmpty(options.author)) {
+    questions.push({
+      type: 'string',
+      name: 'author',
+      message: 'Who is the author of this project? (for credits and readme)',
+      default: process.env.AUTHOR || '',
+    });
+  }
+
   if (_.isEmpty(options.title)) {
     questions.push({
       type: 'string',
       name: 'title',
-      message: 'What is the title of your project? (for app window label)',
+      message:
+        'What is the title of your project? (for app window label and readme)',
       default: '',
     });
   }
@@ -150,11 +168,22 @@ async function promptForMissingOptions(options) {
   let answers = await inquirer.prompt(questions);
 
   const missingName = _.isEmpty(answers.name || options.name);
+  const missingGithubUsername = _.isEmpty(
+    answers.githubUsername || options.githubUsername
+  );
+  const missingAuthor = _.isEmpty(answers.author || options.author);
   const missingTitle = _.isEmpty(answers.title || options.title);
   const missingShortDesc = _.isEmpty(answers.shortDesc || options.shortDesc);
   const missingDesc = _.isEmpty(answers.desc || options.desc);
 
-  while (missingName || missingTitle || missingShortDesc || missingDesc) {
+  while (
+    missingName ||
+    missingGithubUsername ||
+    missingAuthor ||
+    missingTitle ||
+    missingShortDesc ||
+    missingDesc
+  ) {
     // eslint-disable-next-line no-await-in-loop
     answers = await inquirer.prompt(questions);
   }
@@ -162,6 +191,8 @@ async function promptForMissingOptions(options) {
   return {
     ...options,
     name: options.name || answers.name,
+    githubUsername: options.githubUsername || answers.githubUsername,
+    author: options.author || answers.author,
     title: options.title || answers.title,
     shortDesc: options.shortDesc || answers.shortDesc,
     desc: options.desc || answers.desc,
@@ -178,19 +209,28 @@ export async function handleOptions(options) {
 
     createDirectory(newDirectory);
 
-    let fileContent = await readFile(TEMPLATES.HTML_BASIC, 'utf-8');
-
-    // eslint-disable-next-line no-restricted-syntax
-    for (const [template, replacement] of Object.entries(options)) {
-      const templateRegExp = new RegExp(`{{${template}}}`, 'g');
-      fileContent = fileContent.replace(templateRegExp, replacement);
-    }
-
-    await writeFile(`${newDirectory}/index.html`, fileContent);
+    await writeFile(
+      `${newDirectory}/index.html`,
+      interpolateTemplate({
+        templatePath: TEMPLATES.HTML_BASIC,
+        templateValues: options,
+      })
+    );
 
     await writeFile(
       `${newDirectory}/LICENSE`,
-      await readFile(TEMPLATES.LICENSE, 'utf-8')
+      interpolateTemplate({
+        templatePath: TEMPLATES.LICENSE,
+        templateValues: options,
+      })
+    );
+
+    await writeFile(
+      `${newDirectory}/README.md`,
+      interpolateTemplate({
+        templatePath: TEMPLATES.README,
+        templateValues: options,
+      })
     );
 
     await writeFile(

@@ -1,4 +1,4 @@
-import { mkdir } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
 import { exec } from 'child_process';
 import fetch from 'node-fetch';
 
@@ -103,6 +103,25 @@ export const enableGitHubPages = async ({ owner, repo, token }) => {
   } catch (error) {
     console.error('[ vanilla-scaffold ] Failed to enable GitHub Pages:', error);
   }
+};
+
+export const interpolateTemplate = async ({ templatePath, templateValues }) => {
+  let fileContent;
+
+  try {
+    fileContent = await readFile(templatePath, 'utf-8');
+
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [template, replacement] of Object.entries(templateValues)) {
+      const templateRegExp = new RegExp(`{{${template}}}`, 'g');
+      fileContent = fileContent.replace(templateRegExp, replacement);
+    }
+  } catch (error) {
+    console.log(`[ vanilla-scaffold ] Could not interpolate template`, error);
+    process.exit(1);
+  }
+
+  return fileContent;
 };
 
 export const toKebabCase = (str) => {

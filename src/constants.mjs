@@ -12,3 +12,5 @@ export const TEMPLATES = {
 };
 
 export const ENV_PATH = join(__dirname, '../.env');
+
+export const PACKAGE_JSON_PATH = join(__dirname, '../package.json');

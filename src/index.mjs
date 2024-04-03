@@ -17,7 +17,7 @@ import {
   enableGitHubPages,
 } from './helpers.mjs';
 
-import { TEMPLATES, ENV_PATH } from './constants.mjs';
+import { TEMPLATES, ENV_PATH, PACKAGE_JSON_PATH } from './constants.mjs';
 
 if (!existsSync(ENV_PATH)) {
   console.error('Error: .env file not found, run: cp .env-sample .env');
@@ -41,10 +41,13 @@ function parseArgumentsIntoOptions(rawArgs) {
       '--short-desc': String,
       '--desc': String,
       '--icon': String,
+      '--buyMeACofeeUrl': String,
       '--use-jsonbin': Boolean,
       '--create-github-repo': Boolean,
       '--private-repo': Boolean,
       '--open-build': Boolean,
+      '--force': Boolean,
+      '--version': Boolean,
       '-n': '--name',
       '-g': '--github-username',
       '-a': '--author',
@@ -52,10 +55,13 @@ function parseArgumentsIntoOptions(rawArgs) {
       '-s': '--short-desc',
       '-d': '--desc',
       '-i': '--icon',
+      '-c': '--buy-me-a-coffee-url',
       '-j': '--use-jsonbin',
       '-r': '--create-github-repo',
       '-p': '--private-repo',
       '-o': '--open-build',
+      '-f': '--force',
+      '-v': '--version',
     },
     {
       argv: rawArgs.slice(2),
@@ -73,10 +79,20 @@ function parseArgumentsIntoOptions(rawArgs) {
     createGithubRepo: args['--create-github-repo'],
     privateRepo: args['--private-repo'],
     openBuild: args['--open-build'],
+    force: args['--force'],
+    version: args['--version'],
   };
 }
 
 async function promptForMissingOptions(options) {
+  if (options.version) {
+    const { version } = JSON.parse(await readFile(PACKAGE_JSON_PATH, 'utf-8'));
+
+    console.log(`v${version}`);
+
+    process.exit(0);
+  }
+
   const questions = [];
 
   if (_.isEmpty(options.name)) {
@@ -145,6 +161,15 @@ async function promptForMissingOptions(options) {
     });
   }
 
+  if (_.isEmpty(options.buyMeACoffeeUrl)) {
+    questions.push({
+      type: 'string',
+      name: 'buyMeACoffeeUrl',
+      message: 'Enter your buymeacoffee.com url (leave empty to skip)',
+      default: process.env.BUY_ME_A_COFFEE_URL || '',
+    });
+  }
+
   if (_.isUndefined(options.useJsonbin)) {
     questions.push({
       type: 'confirm',
@@ -204,7 +229,7 @@ async function promptForMissingOptions(options) {
     answers = await inquirer.prompt(questions);
   }
 
-  return {
+  const finalOptions = {
     ...options,
     name: options.name || answers.name,
     githubUsername: options.githubUsername || answers.githubUsername,
@@ -213,11 +238,36 @@ async function promptForMissingOptions(options) {
     shortDesc: options.shortDesc || answers.shortDesc,
     desc: options.desc || answers.desc,
     icon: emoji.get(options.icon || answers.icon),
+    buyMeACoffeeUrl: options.buyMeACoffeeUrl || answers.buyMeACoffeeUrl,
     useJsonbin: options.useJsonbin || answers.useJsonbin,
     privateRepo: options.privateRepo || answers.privateRepo,
     createGithubRepo: options.createGithubRepo || answers.createGithubRepo,
     openBuild: options.openBuild || answers.openBuild,
   };
+
+  if (!options.force) {
+    _.each(finalOptions, (value, key) => {
+      if (value !== undefined && value !== null && value !== '') {
+        console.log(`${key}: ${value}`);
+      }
+    });
+
+    const finalizeOptions = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'continue',
+        message: 'Would you like to continue with these options?',
+        default: true,
+      },
+    ]);
+
+    if (!finalizeOptions.continue) {
+      console.log(`[ vanilla-scaffold ] Cancelling scaffold...`);
+      process.exit(0);
+    }
+  }
+
+  return finalOptions;
 }
 
 export async function handleOptions(options) {

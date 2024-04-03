@@ -11,16 +11,20 @@ import {
   toKebabCase,
   openBuild,
   interpolateTemplate,
+  initiateGitRepo,
+  createRepository,
+  connectRepoToGithub,
+  enableGitHubPages,
 } from './helpers.mjs';
 
-import { TEMPLATES } from './constants.mjs';
+import { TEMPLATES, ENV_PATH } from './constants.mjs';
 
-if (!existsSync('.env')) {
+if (!existsSync(ENV_PATH)) {
   console.error('Error: .env file not found, run: cp .env-sample .env');
   process.exit(1);
 }
 
-const config = dotenv.config();
+const config = dotenv.config({ path: ENV_PATH });
 
 if (config.error) {
   console.error('Error loading .env file');
@@ -38,6 +42,7 @@ function parseArgumentsIntoOptions(rawArgs) {
       '--desc': String,
       '--icon': String,
       '--use-jsonbin': Boolean,
+      '--create-github-repo': Boolean,
       '--private-repo': Boolean,
       '--open-build': Boolean,
       '-n': '--name',
@@ -48,6 +53,7 @@ function parseArgumentsIntoOptions(rawArgs) {
       '-d': '--desc',
       '-i': '--icon',
       '-j': '--use-jsonbin',
+      '-r': '--create-github-repo',
       '-p': '--private-repo',
       '-o': '--open-build',
     },
@@ -64,6 +70,7 @@ function parseArgumentsIntoOptions(rawArgs) {
     desc: args['--desc'],
     icon: args['--icon'],
     useJsonbin: args['--use-jsonbin'],
+    createGithubRepo: args['--create-github-repo'],
     privateRepo: args['--private-repo'],
     openBuild: args['--open-build'],
   };
@@ -147,6 +154,15 @@ async function promptForMissingOptions(options) {
     });
   }
 
+  if (_.isUndefined(options.createGithubRepo)) {
+    questions.push({
+      type: 'confirm',
+      name: 'createGithubRepo',
+      message: 'Would you like to automate your github repo creation?',
+      default: false,
+    });
+  }
+
   if (_.isUndefined(options.privateRepo)) {
     questions.push({
       type: 'confirm',
@@ -199,50 +215,72 @@ async function promptForMissingOptions(options) {
     icon: emoji.get(options.icon || answers.icon),
     useJsonbin: options.useJsonbin || answers.useJsonbin,
     privateRepo: options.privateRepo || answers.privateRepo,
+    createGithubRepo: options.createGithubRepo || answers.createGithubRepo,
     openBuild: options.openBuild || answers.openBuild,
   };
 }
 
 export async function handleOptions(options) {
   try {
-    const newDirectory = toKebabCase(options.name);
+    const projectName = toKebabCase(options.name);
 
-    createDirectory(newDirectory);
+    createDirectory(projectName);
 
     await writeFile(
-      `${newDirectory}/index.html`,
-      interpolateTemplate({
+      `${projectName}/index.html`,
+      await interpolateTemplate({
         templatePath: TEMPLATES.HTML_BASIC,
         templateValues: options,
       })
     );
 
     await writeFile(
-      `${newDirectory}/LICENSE`,
-      interpolateTemplate({
+      `${projectName}/LICENSE`,
+      await interpolateTemplate({
         templatePath: TEMPLATES.LICENSE,
         templateValues: options,
       })
     );
 
     await writeFile(
-      `${newDirectory}/README.md`,
-      interpolateTemplate({
+      `${projectName}/README.md`,
+      await interpolateTemplate({
         templatePath: TEMPLATES.README,
         templateValues: options,
       })
     );
 
     await writeFile(
-      `${newDirectory}/.gitignore`,
+      `${projectName}/.gitignore`,
       await readFile(TEMPLATES.LICENSE, 'utf-8')
     );
 
+    await initiateGitRepo(projectName);
+
+    if (options.createGithubRepo) {
+      const htmlUrl = await createRepository({
+        token: process.env.GITHUB_ACCESS_TOKEN,
+        repoData: {
+          name: projectName,
+          description: options.desc,
+          private: options.privateRepo,
+        },
+      });
+
+      await connectRepoToGithub({ name: projectName, htmlUrl });
+
+      await enableGitHubPages({
+        token: process.env.GITHUB_ACCESS_TOKEN,
+        owner: options.githubUsername,
+        repo: projectName,
+      });
+    }
+
     if (options.openBuild) {
-      openBuild(newDirectory);
+      await openBuild(projectName);
     }
   } catch (error) {
-    console.error('Error processing output file:', error.message);
+    console.error('[ vanilla-scaffold ] Error processing output file:', error);
   }
 }
 

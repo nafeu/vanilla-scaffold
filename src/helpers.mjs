@@ -33,27 +33,22 @@ export const createDirectory = async (path) => {
   }
 };
 
-export const openBuild = async (name) => {
+export const initiateGitRepo = async (name) => {
   try {
-    await executeCommand(`open ${name}/`);
-    await executeCommand(`open ${name}/index.html`);
+    await executeCommand(
+      `cd ${name} && git init && git add --all && git commit -m "Initial commit."`
+    );
   } catch (error) {
     console.error(error);
   }
 };
 
-export const connectRepoToGithub = async ({ htmlUrl }) => {
+export const openBuild = async (name) => {
   try {
-    const stdout = await executeCommand(
-      `git remote add origin ${htmlUrl} && git branch -M main && git push -u origin main`
-    );
-
-    console.log('[ vanilla-scaffold ] Repo connected to github', stdout);
+    await executeCommand(`${process.env.EDITOR || '$EDITOR'} ${name}/`);
+    await executeCommand(`open ${name}/index.html`);
   } catch (error) {
-    console.error(
-      '[ vanilla-scaffold ] Error connecting repo to github',
-      error
-    );
+    console.error('[ vanilla-scaffold ] Could not open build', error);
   }
 };
 
@@ -77,6 +72,7 @@ export const createRepository = async ({ token, repoData }) => {
       '[ vanilla-scaffold ] Repository created successfully. URL:',
       data.html_url
     );
+    return data.html_url;
   } catch (error) {
     console.error('[ vanilla-scaffold ] Error creating repository:', error);
   }
@@ -102,6 +98,18 @@ export const enableGitHubPages = async ({ owner, repo, token }) => {
     console.log('[ vanilla-scaffold ] GitHub Pages enabled successfully');
   } catch (error) {
     console.error('[ vanilla-scaffold ] Failed to enable GitHub Pages:', error);
+  }
+};
+
+export const connectRepoToGithub = async ({ name, htmlUrl }) => {
+  try {
+    const stdout = await executeCommand(
+      `cd ${name} && git remote add origin ${htmlUrl} && git branch -M main && git push -u origin main`
+    );
+
+    console.log('[ vanilla-scaffold ] Repo connected to github', stdout);
+  } catch (error) {
+    console.error(error);
   }
 };
 
